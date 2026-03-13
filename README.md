@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CV Analyser Service (Backend)
 
 ## Environment variables
@@ -256,7 +255,3 @@ If you want durable file storage:
 - **Generation**: Set `GENERATION_MODEL` plus `HF_API_TOKEN` to enable AI-generated interview questions and suggestions.
 
 Do not commit `.env` to git.
-=======
-# -cv-analyser
- cv-analyser
->>>>>>> origin/main

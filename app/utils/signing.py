@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import time
@@ -21,8 +22,11 @@ def sign_storage_key(storage_key: str, ttl_seconds: int = 300) -> str:
 
 
 def verify_signed_token(token: str) -> str:
-    raw = base64.urlsafe_b64decode(token.encode("utf-8"))
-    msg, sig = raw.rsplit(b".", 1)
+    try:
+        raw = base64.urlsafe_b64decode(token.encode("utf-8"))
+        msg, sig = raw.rsplit(b".", 1)
+    except (binascii.Error, ValueError):
+        raise ValueError("invalid signature")
     expected = hmac.new(_secret_bytes(), msg, hashlib.sha256).digest()
     if not hmac.compare_digest(sig, expected):
         raise ValueError("invalid signature")

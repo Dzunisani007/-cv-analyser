@@ -79,4 +79,16 @@ def get_result(analysis_id: str):
         # Ensure v1 shape for UI
         payload = _adapt_legacy_result(payload)
 
+        # Backward compatibility: promote match_analysis fields to top-level for existing tests/UIs
+        match_analysis = payload.get("match_analysis", {})
+        if "overall_score" in match_analysis:
+            payload["overall_score"] = match_analysis["overall_score"]
+        if "component_scores" in match_analysis:
+            payload["component_scores"] = match_analysis["component_scores"]
+        if "evidence" in match_analysis:
+            payload["evidence"] = match_analysis["evidence"]
+        if "match_suggestions" in match_analysis:
+            payload["suggestions"] = match_analysis["match_suggestions"]
+        # Keep raw_payload as-is for test expectations
+
         return jsonable_encoder(payload)

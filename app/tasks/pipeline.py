@@ -11,6 +11,7 @@ from app.services.parser import extract_text_and_layout
 from app.services.scorer import score_components
 from app.utils.normalizer import normalize_analysis_result
 from app.services.generation import generate_interview_questions, generate_suggestions
+from app.utils.pii import strip_pii_for_models
 from app.utils.storage import load_file_bytes
 
 
@@ -60,9 +61,6 @@ def process_job(job) -> None:
         },
         "education_details": {
             "education": entities.get("education_details", {}).get("education") or [],
-        extraction_metadata=extraction_metadata,
-        structured_data=structured_data,
-        extraction_suggestions=extraction_suggestions,
             "certifications": entities.get("education_details", {}).get("certifications") or [],
             "languages": entities.get("education_details", {}).get("languages") or [],
         },
@@ -119,8 +117,8 @@ def process_job(job) -> None:
             return
 
         analysis.result = normalized
-        analysis.overall_score = normalized["overall_score"]
-        analysis.component_scores = normalized["component_scores"]
+        analysis.overall_score = (normalized.get("match_analysis") or {}).get("overall_score")
+        analysis.component_scores = (normalized.get("match_analysis") or {}).get("component_scores")
         analysis.status = "completed"
         db.add(analysis)
 
@@ -131,13 +129,13 @@ def process_job(job) -> None:
 
         rs = ResumeScore(
             resume_id=resume_id,
-            overall_score=normalized["overall_score"],
-            component_scores=normalized["component_scores"],
+            overall_score=(normalized.get("match_analysis") or {}).get("overall_score"),
+            component_scores=(normalized.get("match_analysis") or {}).get("component_scores"),
             explanation={"evidence": evidence, "suggestions": suggestions},
         )
         db.add(rs)
 
-        _audit(db, "cv_analyses", analysis.id, "analysis_completed", None, {"overall_score": normalized["overall_score"]})
+        _audit(db, "cv_analyses", analysis.id, "analysis_completed", None, {"overall_score": (normalized.get("match_analysis") or {}).get("overall_score")})
 
 
 def _build_matched_skill_evidence(skill_matches: list[dict], resume_text: str) -> list[dict]:

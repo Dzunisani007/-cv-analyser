@@ -8,7 +8,7 @@ def normalize_analysis_result(
     overall_score: float | None,
     component_scores: dict | None,
     evidence: dict | None,
-    suggestions: list[dict] | None,
+    suggestions: list[str] | None,
     raw_payload: dict | None,
     extraction_metadata: dict | None = None,
     structured_data: dict | None = None,
@@ -36,8 +36,8 @@ def normalize_analysis_result(
             or {"skills": 0.0, "experience": 0.0, "education": 0.0, "format": 0.0},
             "evidence": evidence
             or {"matched_skills": [], "missing_skills": [], "timeline": []},
-            "match_suggestions": suintrviw_qustionso [],
-            "interview_questions": [],  # placeholder; can be added later
+            "match_suggestions": suggestions or [],
+            "interview_questions": interview_questions or [],
         },
         "extraction_suggestions": extraction_suggestions or [],
         "raw_payload": raw_payload or {},

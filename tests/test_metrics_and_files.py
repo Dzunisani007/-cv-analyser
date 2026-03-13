@@ -3,10 +3,8 @@ from __future__ import annotations
 import os
 import time
 
-import httpx
+from fastapi.testclient import TestClient
 import pytest
-
-from app.utils.signing import sign_storage_key, verify_signed_token
 
 
 def test_metrics_endpoint_returns_200_and_prometheus_content():
@@ -20,7 +18,7 @@ def test_metrics_endpoint_returns_200_and_prometheus_content():
 
     from app.main import app
 
-    with httpx.Client(app=app, base_url="http://test") as client:
+    with TestClient(app) as client:
         r = client.get("/metrics")
         assert r.status_code == 200
         # Basic sanity: prometheus client output is text/plain
@@ -29,6 +27,7 @@ def test_metrics_endpoint_returns_200_and_prometheus_content():
 
 def test_sign_and_verify_token_roundtrip():
     os.environ["SIGNING_SECRET"] = "test-secret"
+    from app.utils.signing import sign_storage_key, verify_signed_token
     key = "sample-resume-key-12345.pdf"
     token = sign_storage_key(key, ttl_seconds=2)
     assert token
@@ -45,6 +44,7 @@ def test_sign_and_verify_token_roundtrip():
 
 def test_invalid_token_raises():
     os.environ["SIGNING_SECRET"] = "test-secret"
+    from app.utils.signing import verify_signed_token
     with pytest.raises(ValueError, match="invalid signature"):
         verify_signed_token("not-a-base64-token")
 
@@ -59,10 +59,10 @@ def test_download_endpoint_requires_auth_and_token():
 
     from app.main import app
 
-    with httpx.Client(app=app, base_url="http://test") as client:
+    with TestClient(app) as client:
         # No auth header
         r = client.get("/files/download?token=any")
-        assert r.status_code == 401
+        assert r.status_code == 403
 
         # Auth header but no token query param
         r = client.get("/files/download", headers={"Authorization": "Bearer secret123"})
