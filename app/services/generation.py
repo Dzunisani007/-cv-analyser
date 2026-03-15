@@ -6,6 +6,7 @@ import os
 import requests
 
 from app.config import settings
+from app.utils.hf_api import post_json_with_retry
 
 
 def generation_enabled() -> bool:
@@ -45,13 +46,12 @@ def _call_generation(prompt: str, expected_type: str = "list") -> list[str]:
         "parameters": {"max_new_tokens": 256, "temperature": 0.7},
     }
     try:
-        resp = requests.post(
-            f"https://api-inference.huggingface.co/models/{settings.generation_model}",
+        resp = post_json_with_retry(
+            url=f"https://api-inference.huggingface.co/models/{settings.generation_model}",
             headers=headers,
-            json=payload,
-            timeout=30,
+            payload=payload,
+            timeout_seconds=60,
         )
-        resp.raise_for_status()
         data = resp.json()
         # HF API returns list with generated_text
         if isinstance(data, list) and data and "generated_text" in data[0]:

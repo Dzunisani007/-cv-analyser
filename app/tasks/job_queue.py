@@ -74,12 +74,18 @@ def _worker_loop() -> None:
 
 def _set_analysis_status(analysis_id: str, status: str, warnings: dict | None = None) -> None:
     import uuid
+    import datetime
 
     with session_scope() as db:
         a = db.get(CVAnalysis, uuid.UUID(analysis_id))
         if not a:
             return
         a.status = status
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if hasattr(a, "started_at") and status == "processing" and getattr(a, "started_at", None) is None:
+            setattr(a, "started_at", now)
+        if hasattr(a, "finished_at") and status in ("completed", "failed"):
+            setattr(a, "finished_at", now)
         if warnings is not None:
             a.warnings = warnings
         db.add(a)

@@ -25,3 +25,21 @@ def require_bearer_auth(authorization: str | None = Header(default=None)) -> Non
     token = authorization.split(" ", 1)[1].strip()
     if token != secret:
         raise HTTPException(status_code=403, detail="invalid token")
+
+
+def require_bearer_auth_strict(authorization: str | None = Header(default=None)) -> None:
+    """Strict bearer auth guard.
+
+    Always requires Authorization: Bearer <AUTH_SECRET>.
+    """
+
+    secret = settings.auth_secret
+    if not secret:
+        raise HTTPException(status_code=401, detail="AUTH_SECRET is not configured")
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="missing bearer token")
+
+    token = authorization.split(" ", 1)[1].strip()
+    if token != secret:
+        raise HTTPException(status_code=403, detail="invalid token")

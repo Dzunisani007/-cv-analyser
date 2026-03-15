@@ -4,9 +4,10 @@ import uuid
 
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 
+from app.auth import require_bearer_auth_strict
 from app.db import session_scope
 from app.utils.normalizer import _adapt_legacy_result
 
@@ -17,7 +18,7 @@ router = APIRouter()
 
 
 @router.get("/analyses/{analysis_id}/status")
-def get_status(analysis_id: str):
+def get_status(analysis_id: str, _auth: None = Depends(require_bearer_auth_strict)):
     try:
         aid = uuid.UUID(analysis_id)
     except Exception:
@@ -48,13 +49,13 @@ def get_status(analysis_id: str):
             "summary": None,
             "match_score": int(float(overall)),
             "missing_skills": missing,
-            "finished_at": None,
+            "finished_at": getattr(a, "finished_at", None),
             "warnings": a.warnings,
         }
 
 
 @router.get("/analyses/{analysis_id}/result")
-def get_result(analysis_id: str):
+def get_result(analysis_id: str, _auth: None = Depends(require_bearer_auth_strict)):
     try:
         aid = uuid.UUID(analysis_id)
     except Exception:

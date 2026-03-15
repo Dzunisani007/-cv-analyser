@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def _getenv(name: str, default: str | None = None) -> str | None:

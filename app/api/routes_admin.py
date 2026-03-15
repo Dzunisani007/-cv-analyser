@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.auth import require_bearer_auth
+from app.auth import require_bearer_auth_strict
 from app.db import session_scope
 from app.models import CVAnalysis, Resume
 from app.tasks.job_queue import Job, enqueue
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin")
 
 
 @router.post("/analyses/{analysis_id}/rerun")
-def rerun(analysis_id: str, _auth: None = Depends(require_bearer_auth)):
+def rerun(analysis_id: str, _auth: None = Depends(require_bearer_auth_strict)):
     try:
         aid = uuid.UUID(analysis_id)
     except Exception:
@@ -38,7 +38,7 @@ def rerun(analysis_id: str, _auth: None = Depends(require_bearer_auth)):
 
 
 @router.delete("/resumes/{resume_id}")
-def delete_resume(resume_id: str, _auth: None = Depends(require_bearer_auth)):
+def delete_resume(resume_id: str, _auth: None = Depends(require_bearer_auth_strict)):
     try:
         rid = uuid.UUID(resume_id)
     except Exception:
@@ -58,7 +58,7 @@ def delete_resume(resume_id: str, _auth: None = Depends(require_bearer_auth)):
 
 
 @router.post("/resumes/{resume_id}/download-token")
-def create_download_token(resume_id: str, _auth: None = Depends(require_bearer_auth)):
+def create_download_token(resume_id: str, _auth: None = Depends(require_bearer_auth_strict)):
     try:
         rid = uuid.UUID(resume_id)
     except Exception:

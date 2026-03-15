@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import numpy as np
-import requests
 
 from app.config import settings
+from app.utils.hf_api import post_json_with_retry
 
 _model = None
 
@@ -41,6 +41,44 @@ def embed_text(texts: list[str]) -> np.ndarray:
         return _embed_via_hf_api(texts)
     # Local model
     return m.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+
+
+def _embed_via_hf_api(texts: list[str]) -> np.ndarray:
+    # HF Inference API for feature-extraction typically returns:
+    # - for one input: List[float]
+    # - for many inputs: List[List[float]]
+    headers = {"Authorization": f"Bearer {settings.hf_api_token}"}
+    payload = {"inputs": texts if len(texts) != 1 else texts[0]}
+    resp = post_json_with_retry(
+        url=f"https://api-inference.huggingface.co/models/{settings.embed_model}",
+        headers=headers,
+        payload=payload,
+        timeout_seconds=45,
+    )
+    data = resp.json()
+
+    # Normalize to 2D list
+    if isinstance(data, list) and data and isinstance(data[0], (int, float)):
+        vectors = [data]
+    elif isinstance(data, list) and (not data or isinstance(data[0], list)):
+        vectors = data
+    else:
+        # Unexpected response
+        return np.zeros((len(texts), 384))
+
+    try:
+        arr = np.array(vectors, dtype=float)
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        # Ensure row count matches inputs
+        if arr.shape[0] != len(texts):
+            if arr.shape[0] == 1 and len(texts) > 1:
+                arr = np.repeat(arr, len(texts), axis=0)
+            else:
+                return np.zeros((len(texts), arr.shape[1] if arr.ndim == 2 else 384))
+        return arr
+    except Exception:
+        return np.zeros((len(texts), 384))
 
 
 def match_skills_to_job(extracted_skills: list[str], job_description: str | None, threshold: float = 0.7) -> list[dict]:

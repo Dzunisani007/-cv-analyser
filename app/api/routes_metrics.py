@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Response
+from app.auth import require_bearer_auth_strict
+from fastapi import APIRouter, Depends, Response
 
 try:
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -15,5 +16,5 @@ router = APIRouter()
 
 
 @router.get("/metrics")
-def metrics():
+def metrics(_auth: None = Depends(require_bearer_auth_strict)):
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

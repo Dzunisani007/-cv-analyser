@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.auth import require_bearer_auth
+from app.auth import require_bearer_auth_strict
 from app.config import settings
 from app.db import session_scope
 from app.models import CVAnalysis, Resume
@@ -19,7 +19,7 @@ async def upload_resume(
     file: UploadFile = File(...),
     uploaded_by: str | None = Form(None),
     job_description: str | None = Form(None),
-    _auth: None = Depends(require_bearer_auth),
+    _auth: None = Depends(require_bearer_auth_strict),
 ):
     allowed = {
         "application/pdf",

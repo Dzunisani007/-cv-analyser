@@ -5,6 +5,7 @@ import re
 import requests
 
 from app.config import settings
+from app.utils.hf_api import post_json_with_retry
 
 _ner_pipe = None
 
@@ -40,13 +41,12 @@ def _ner_via_hf_api(texts: list[str]) -> list[dict]:
     for txt in texts:
         payload = {"inputs": txt}
         try:
-            resp = requests.post(
-                f"https://api-inference.huggingface.co/models/{settings.ner_model}",
+            resp = post_json_with_retry(
+                url=f"https://api-inference.huggingface.co/models/{settings.ner_model}",
                 headers=headers,
-                json=payload,
-                timeout=30,
+                payload=payload,
+                timeout_seconds=45,
             )
-            resp.raise_for_status()
             data = resp.json()
             # HF API returns list of entity dicts
             if isinstance(data, list):

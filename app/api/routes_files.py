@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
-from app.auth import require_bearer_auth
+from app.auth import require_bearer_auth_strict
 from app.utils.signing import verify_signed_token
 from app.utils.storage import load_file_bytes
 
@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("/files/download")
 def download_file(
     token: str = Query(...),
-    _auth: None = Depends(require_bearer_auth),
+    _auth: None = Depends(require_bearer_auth_strict),
 ):
     try:
         storage_key = verify_signed_token(token)
