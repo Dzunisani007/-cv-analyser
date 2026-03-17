@@ -95,6 +95,12 @@ logs/
 *.storage
 .pytest-db.sqlite
 
+# Local test artifacts
+*.pdf
+e2e_*.json
+hf_model_probe_results.json
+
 # Cursor
 .cursorignore
 .cursorindexingignore
+.env

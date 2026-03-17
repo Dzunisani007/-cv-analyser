@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 
 from app.db import session_scope
@@ -9,6 +10,7 @@ from app.services.feedback import generate_feedback_list
 from app.services.ner_and_canon import parse_entities
 from app.services.parser import extract_text_and_layout
 from app.services.scorer import score_components
+from app.services.structured_extraction import extract_structured_cv
 from app.utils.normalizer import normalize_analysis_result
 from app.services.generation import generate_interview_questions, generate_suggestions
 from app.utils.pii import strip_pii_for_models
@@ -34,7 +36,25 @@ def process_job(job) -> None:
         db.add(resume)
         db.flush()
 
-    # PII strip before model calls
+    m = re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", resume_text or "", re.IGNORECASE)
+    contact_email = m.group(0) if m else None
+    m = re.search(r"\b\+?\d[\d\s().-]{7,}\d\b", resume_text or "")
+    contact_phone = re.sub(r"\s+", " ", m.group(0)).strip() if m else None
+    m = re.search(r"https?://(?:www\.)?linkedin\.com/[^\s)>,]+", resume_text or "", re.IGNORECASE)
+    contact_linkedin = m.group(0).rstrip(".,;") if m else None
+    if not contact_linkedin:
+        m = re.search(r"\blinkedin\.com/[^\s)>,]+", resume_text or "", re.IGNORECASE)
+        contact_linkedin = ("https://" + m.group(0).rstrip(".,;")) if m else None
+    m = re.search(r"https?://(?:www\.)?github\.com/[^\s)>,]+", resume_text or "", re.IGNORECASE)
+    contact_github = m.group(0).rstrip(".,;") if m else None
+    if not contact_github:
+        m = re.search(r"\bgithub\.com/[^\s)>,]+", resume_text or "", re.IGNORECASE)
+        contact_github = ("https://" + m.group(0).rstrip(".,;")) if m else None
+    m = re.search(r"https?://[^\s)>,]+", resume_text or "", re.IGNORECASE)
+    contact_portfolio = m.group(0).rstrip(".,;") if m else None
+    if contact_portfolio in (contact_linkedin, contact_github):
+        contact_portfolio = None
+
     safe_text = strip_pii_for_models(resume_text)
 
     entities = parse_entities(safe_text)
@@ -47,17 +67,23 @@ def process_job(job) -> None:
     score_payload = score_components(entities, skill_matches, resume_text)
     suggestions = generate_feedback_list(entities, resume_text, score_payload, missing)
 
+    prof_entities = entities.get("professional_details", {}) if isinstance(entities, dict) else {}
+    exp_val = prof_entities.get("experience")
+    exp_items: list[dict] = exp_val if isinstance(exp_val, list) else []
+    exp_text = "\n".join([str(x.get("description") or "").strip() for x in exp_items if isinstance(x, dict) and (x.get("description") or "").strip()])
+
     # Build structured_data from NER entities (minimal mapping)
+    # LLM structured_data may have already populated these fields; NER provides fallback.
     structured_data = {
         "personal_details": {
             "full_name": entities.get("personal_details", {}).get("full_name"),
-            "email": entities.get("personal_details", {}).get("email"),
-            "phone": entities.get("personal_details", {}).get("phone"),
+            "email": contact_email or entities.get("personal_details", {}).get("email"),
+            "phone": contact_phone or entities.get("personal_details", {}).get("phone"),
             "address": entities.get("personal_details", {}).get("address"),
             "dob": entities.get("personal_details", {}).get("dob"),
-            "linkedin": entities.get("personal_details", {}).get("linkedin"),
-            "github": entities.get("personal_details", {}).get("github"),
-            "portfolio": entities.get("personal_details", {}).get("portfolio"),
+            "linkedin": contact_linkedin or entities.get("personal_details", {}).get("linkedin"),
+            "github": contact_github or entities.get("personal_details", {}).get("github"),
+            "portfolio": contact_portfolio or entities.get("personal_details", {}).get("portfolio"),
         },
         "education_details": {
             "education": entities.get("education_details", {}).get("education") or [],
@@ -66,16 +92,28 @@ def process_job(job) -> None:
         },
         "professional_details": {
             "skills": entities.get("professional_details", {}).get("skills") or [],
-            "experience": entities.get("professional_details", {}).get("experience") or "",
+            # Backward compatible string field + richer structured list field for autofill UIs
+            "experience": exp_text or "",
+            "experience_items": exp_items,
             "position": entities.get("professional_details", {}).get("position") or "",
             "previous_companies": entities.get("professional_details", {}).get("previous_companies") or [],
             "bio": entities.get("professional_details", {}).get("bio") or "",
         },
     }
 
+    llm_structured = extract_structured_cv(resume_text)
+    if isinstance(llm_structured, dict):
+        for k in ("personal_details", "education_details", "professional_details"):
+            if isinstance(llm_structured.get(k), dict):
+                base = structured_data.get(k)
+                if isinstance(base, dict):
+                    base.update(llm_structured.get(k) or {})
+                else:
+                    structured_data[k] = llm_structured.get(k)
+
     # Simple extraction suggestions (e.g., missing LinkedIn, missing email)
     extraction_suggestions = []
-    pd = entities.get("personal_details", {})
+    pd = structured_data.get("personal_details", {}) if isinstance(structured_data, dict) else {}
     if not pd.get("linkedin"):
         extraction_suggestions.append("Add a LinkedIn URL to your profile.")
     if not pd.get("email"):

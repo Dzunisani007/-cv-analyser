@@ -9,17 +9,37 @@ services:
       - key: DATABASE_URL
         value: postgresql://recruitement_deploy_user:tHkpCaJ8nxQpN1tCItF7BEXNvzLrkgiQ@dpg-d62tb67pm1nc738h8jv0-a.oregon-postgres.render.com/recruitement_deploy?sslmode=require
       - key: STORAGE_BACKEND
-        value: local
-      - key: LOCAL_STORAGE_PATH
-        value: ./.storage
+        value: cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        value: ""
+      - key: CLOUDINARY_API_KEY
+        value: ""
+      - key: CLOUDINARY_API_SECRET
+        value: ""
       - key: SKIP_MODEL_LOAD
         value: true
       - key: AUTH_SECRET
-        value: 3c9f1e7a8b6d4c2f5a9e0d1b7c3f8a6e
+        value: ""
       - key: PUBLIC_UPLOADS
-        value: false
+        value: true
       - key: HF_API_TOKEN
         value: ""
+      - key: NER_MODEL
+        value: dslim/bert-base-NER
+      - key: EMBED_MODEL
+        value: TechWolf/JobBERT-v2
+      - key: ENABLE_STRUCTURED_EXTRACTION
+        value: true
+      - key: STRUCTURED_EXTRACTION_MODEL
+        value: Qwen/Qwen2.5-7B-Instruct
+      - key: STRUCTURED_EXTRACTION_REPAIR_JSON
+        value: true
+      - key: ENABLE_LAYOUT_AWARE_PARSING
+        value: true
+      - key: LAYOUTLMV3_MODEL
+        value: microsoft/layoutlmv3-base
+      - key: DONUT_MODEL
+        value: naver-clova-ix/donut-base
       - key: PGVECTOR_ENABLED
         value: false
       - key: WORKER_COUNT

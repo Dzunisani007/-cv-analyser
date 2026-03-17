@@ -90,3 +90,22 @@ class AuditLog(Base):
     actor_id: Mapped[uuid.UUID | None] = mapped_column(sa.UUID(as_uuid=True), nullable=True)
     payload = mapped_column(sa.JSON, nullable=True)
     ts = mapped_column(sa.DateTime(timezone=True), server_default=sa.func.now())
+
+
+class WorkflowAuditLog(Base):
+    """Audit log for Risk Gate workflow progression."""
+    __tablename__ = "cv_workflow_audit_logs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    analysis_id: Mapped[uuid.UUID] = mapped_column(
+        sa.UUID(as_uuid=True), ForeignKey("cv_analyses.id", ondelete="CASCADE"), nullable=False
+    )
+    from_stage: Mapped[str | None] = mapped_column(Text, nullable=True)
+    to_stage: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action: Mapped[str] = mapped_column(Text, nullable=False)  # 'advance', 'reject', 'approve'
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(sa.UUID(as_uuid=True), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    risk_assessment = mapped_column(sa.JSON, nullable=True)
+    created_at = mapped_column(sa.DateTime(timezone=True), server_default=sa.func.now())
+
+    analysis: Mapped[CVAnalysis] = relationship("CVAnalysis", back_populates="workflow_logs")

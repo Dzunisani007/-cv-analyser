@@ -7,7 +7,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 
-from app.auth import require_bearer_auth_strict
+from app.auth import require_bearer_auth
 from app.db import session_scope
 from app.utils.normalizer import _adapt_legacy_result
 
@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get("/analyses/{analysis_id}/status")
-def get_status(analysis_id: str, _auth: None = Depends(require_bearer_auth_strict)):
+def get_status(analysis_id: str, _auth: None = Depends(require_bearer_auth)):
     try:
         aid = uuid.UUID(analysis_id)
     except Exception:
@@ -55,7 +55,7 @@ def get_status(analysis_id: str, _auth: None = Depends(require_bearer_auth_stric
 
 
 @router.get("/analyses/{analysis_id}/result")
-def get_result(analysis_id: str, _auth: None = Depends(require_bearer_auth_strict)):
+def get_result(analysis_id: str, _auth: None = Depends(require_bearer_auth)):
     try:
         aid = uuid.UUID(analysis_id)
     except Exception:

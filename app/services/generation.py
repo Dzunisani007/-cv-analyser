@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
-
-import requests
+import re
 
 from app.config import settings
-from app.utils.hf_api import post_json_with_retry
+from huggingface_hub import InferenceClient
 
 
 def generation_enabled() -> bool:
@@ -37,36 +37,54 @@ def generate_suggestions(analysis_summary: dict) -> list[str]:
 
 
 def _call_generation(prompt: str, expected_type: str = "list") -> list[str]:
-    headers = {
-        "Authorization": f"Bearer {settings.hf_api_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "inputs": prompt,
-        "parameters": {"max_new_tokens": 256, "temperature": 0.7},
-    }
-    try:
-        resp = post_json_with_retry(
-            url=f"https://api-inference.huggingface.co/models/{settings.generation_model}",
-            headers=headers,
-            payload=payload,
-            timeout_seconds=60,
-        )
-        data = resp.json()
-        # HF API returns list with generated_text
-        if isinstance(data, list) and data and "generated_text" in data[0]:
-            generated = data[0]["generated_text"]
-            # Try to extract JSON list from the output
-            import json
-            import re
+    generated = _hf_generate(prompt)
+    if not generated:
+        return []
+    # Try to extract JSON list from the output
+    match = re.search(r"\[.*\]", generated, re.DOTALL)
+    if match:
+        parsed = json.loads(match.group())
+        if isinstance(parsed, list):
+            return [str(item) for item in parsed[:5]]
+    # Fallback: return empty list
+    return []
 
-            match = re.search(r"\[.*\]", generated, re.DOTALL)
-            if match:
-                parsed = json.loads(match.group())
-                if isinstance(parsed, list):
-                    return [str(item) for item in parsed[:5]]
-        # Fallback: return empty list
-        return []
-    except Exception as e:
+
+def _hf_generate(prompt: str) -> str | None:
+    if not settings.generation_model or not settings.hf_api_token:
+        return None
+    try:
+        client = InferenceClient(api_key=settings.hf_api_token)
+        out = None
+        # Prefer chat/completions for conversational models
+        try:
+            chat_fn = getattr(client, "chat_completion", None)
+            if callable(chat_fn):
+                resp = chat_fn(
+                    model=settings.generation_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=256,
+                    temperature=0.7,
+                )
+                if hasattr(resp, "choices") and resp.choices:
+                    msg = resp.choices[0].message
+                    out = getattr(msg, "content", None)
+                elif isinstance(resp, dict):
+                    choices = resp.get("choices") or []
+                    if choices and isinstance(choices[0], dict):
+                        out = ((choices[0].get("message") or {}) or {}).get("content")
+        except Exception:
+            out = None
+
+        if not out:
+            out = client.text_generation(
+                prompt,
+                model=settings.generation_model,
+                max_new_tokens=256,
+                temperature=0.7,
+                return_full_text=False,
+            )
+        return out if isinstance(out, str) else None
+    except Exception as e:  # noqa: BLE001
         logging.getLogger(__name__).warning(f"HF generation failed: {e}")
-        return []
+        return None

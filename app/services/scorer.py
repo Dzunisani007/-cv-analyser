@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import re
+from typing import Dict, Any, Optional
+
+from .structural_validator import StructuralValidator
+from .risk_assessor import CVRiskAssessor
 
 
 def _clamp01(x: float) -> float:
@@ -54,12 +58,75 @@ def _format_score_from_text(resume_text: str) -> float:
     return 0.6
 
 
-def score_components(entities: dict, skill_matches: list[dict], resume_text: str) -> dict:
+def score_components(entities: dict, skill_matches: list[dict], resume_text: str,
+                    structured_data: Optional[Dict[str, Any]] = None,
+                    job_requirements: Optional[Dict[str, Any]] = None,
+                    industry: Optional[str] = None) -> dict:
+    # Original scoring logic
     skill_score = compute_skill_score(skill_matches)
     experience_score = _experience_score_from_text(resume_text)
     education_score = _education_score_from_text(resume_text)
     format_score = _format_score_from_text(resume_text)
 
+    # Calculate base component scores
+    component_scores = {
+        "skills": float(_clamp01(skill_score)),
+        "experience": float(_clamp01(experience_score)),
+        "education": float(_clamp01(education_score)),
+        "format": float(_clamp01(format_score)),
+    }
+
+    # Initialize enhanced results
+    structural_validation = None
+    risk_assessment = None
+    enhanced_overall_score = None
+
+    # Add Risk Gate enhancements if structured data is available
+    if structured_data:
+        # Structural validation
+        validator = StructuralValidator()
+        structural_validation = validator.validate_cv_structure(
+            structured_data,
+            industry
+        )
+
+        # Risk assessment
+        if job_requirements:
+            assessor = CVRiskAssessor()
+            risk_assessment = assessor.assess_cv_risks(
+                {
+                    'structured_data': structured_data,
+                    'extraction_metadata': {},
+                    'match_analysis': {
+                        'overall_score': 0,  # Will be calculated below
+                        'component_scores': component_scores
+                    }
+                },
+                job_requirements,
+                industry
+            )
+
+            # Adjust overall score based on risk assessment
+            risk_penalty = max(0, (100 - risk_assessment.overall_score) / 100) * 0.3  # Max 30% penalty
+            # enhanced_overall_score is computed after base overall is calculated
+            enhanced_overall_score = 1.0 - risk_penalty
+        else:
+            # Fallback risk assessment without job requirements
+            assessor = CVRiskAssessor()
+            risk_assessment = assessor.assess_cv_risks(
+                {
+                    'structured_data': structured_data,
+                    'extraction_metadata': {},
+                    'match_analysis': {
+                        'overall_score': 0,
+                        'component_scores': component_scores
+                    }
+                },
+                {},
+                industry
+            )
+
+    # Calculate original overall score
     weights = {"skills": 0.5, "experience": 0.3, "education": 0.1, "format": 0.1}
     overall = (
         skill_score * weights["skills"]
@@ -67,10 +134,42 @@ def score_components(entities: dict, skill_matches: list[dict], resume_text: str
         + education_score * weights["education"]
         + format_score * weights["format"]
     )
-    component_scores = {
-        "skills": float(_clamp01(skill_score)),
-        "experience": float(_clamp01(experience_score)),
-        "education": float(_clamp01(education_score)),
-        "format": float(_clamp01(format_score)),
+
+    base_overall_pct = float(_clamp01(overall) * 100.0)
+
+    result = {
+        "overall_score": base_overall_pct,
+        "component_scores": component_scores
     }
-    return {"overall_score": float(_clamp01(overall) * 100.0), "component_scores": component_scores}
+
+    # Add enhanced features if available
+    if structural_validation:
+        result["structural_validation"] = {
+            "completeness_score": structural_validation.completeness_score,
+            "is_complete": structural_validation.is_complete,
+            "critical_issues": [issue.message for issue in structural_validation.critical_issues],
+            "warnings": [issue.message for issue in structural_validation.warnings],
+            "suggestions": [issue.message for issue in structural_validation.suggestions],
+            "compliance_score": structural_validation.compliance_score,
+            "industry_compliance": structural_validation.industry_compliance
+        }
+
+    if risk_assessment:
+        result["risk_assessment"] = {
+            "overall_score": risk_assessment.overall_score,
+            "risk_level": risk_assessment.risk_level.value,
+            "critical_issues": risk_assessment.critical_issues,
+            "warnings": risk_assessment.warnings,
+            "recommendations": risk_assessment.recommendations,
+            "compliance_status": {k: v.value for k, v in risk_assessment.compliance_status.items()},
+            "industry_score": risk_assessment.industry_score,
+            "completeness_score": risk_assessment.completeness_score
+        }
+
+        # Use enhanced score if risk assessment is available
+        if enhanced_overall_score is not None:
+            # In job_requirements mode enhanced_overall_score stores the multiplicative factor
+            if 0.0 <= float(enhanced_overall_score) <= 1.0:
+                result["overall_score"] = float(base_overall_pct * float(enhanced_overall_score))
+
+    return result

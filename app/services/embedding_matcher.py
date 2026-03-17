@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from app.config import settings
-from app.utils.hf_api import post_json_with_retry
+from huggingface_hub import InferenceClient
 
 _model = None
 
@@ -44,18 +44,14 @@ def embed_text(texts: list[str]) -> np.ndarray:
 
 
 def _embed_via_hf_api(texts: list[str]) -> np.ndarray:
-    # HF Inference API for feature-extraction typically returns:
-    # - for one input: List[float]
-    # - for many inputs: List[List[float]]
-    headers = {"Authorization": f"Bearer {settings.hf_api_token}"}
-    payload = {"inputs": texts if len(texts) != 1 else texts[0]}
-    resp = post_json_with_retry(
-        url=f"https://api-inference.huggingface.co/models/{settings.embed_model}",
-        headers=headers,
-        payload=payload,
-        timeout_seconds=45,
-    )
-    data = resp.json()
+    client = InferenceClient(api_key=settings.hf_api_token)
+    # feature_extraction may return:
+    # - List[float] for a single string
+    # - List[List[float]] for multiple strings
+    try:
+        data = client.feature_extraction(texts if len(texts) != 1 else texts[0], model=settings.embed_model)
+    except Exception:
+        return np.zeros((len(texts), 384))
 
     # Normalize to 2D list
     if isinstance(data, list) and data and isinstance(data[0], (int, float)):
