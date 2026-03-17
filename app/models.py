@@ -49,6 +49,9 @@ class CVAnalysis(Base):
     finished_at = mapped_column(sa.DateTime(timezone=True), nullable=True)
 
     resume: Mapped[Resume] = relationship("Resume", back_populates="analyses")
+    workflow_logs: Mapped[list[WorkflowAuditLog]] = relationship(
+        "WorkflowAuditLog", back_populates="analysis", cascade="all, delete-orphan"
+    )
 
 
 class ResumeSkill(Base):
