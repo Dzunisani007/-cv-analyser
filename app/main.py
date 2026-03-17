@@ -64,6 +64,19 @@ def _startup() -> None:
             pass
 
 
+@app.post("/migrate")
+def _run_migrations():
+    """Temporary endpoint to run migrations - remove after use"""
+    try:
+        from alembic.config import Config
+        from alembic import command
+        
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        return {"status": "success", "message": "Migrations completed"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.on_event("shutdown")
 def _shutdown() -> None:
     stop_workers()
