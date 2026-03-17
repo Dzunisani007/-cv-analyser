@@ -128,19 +128,23 @@ def _load_from_cloudinary(public_id: str) -> bytes:
     # Generate a download URL
     cld = _get_cloudinary()
 
-    try:
-        # Get the resource info to find the URL
-        resource = cld.api.resource(public_id)
-        url = resource.get("secure_url")
-        if not url:
-            raise FileNotFoundError(f"Cloudinary resource not found: {public_id}")
+    # Try the original public_id first
+    for attempt_public_id in [public_id, public_id.rsplit('.', 1)[0]]:  # Try with and without extension
+        try:
+            # Get the resource info to find the URL
+            resource = cld.api.resource(attempt_public_id, resource_type="raw")
+            url = resource.get("secure_url")
+            if not url:
+                continue
 
-        # Download the file
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return response.content
-    except Exception as e:
-        raise FileNotFoundError(f"Failed to download from Cloudinary: {e}")
+            # Download the file
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            return response.content
+        except Exception:
+            continue
+    
+    raise FileNotFoundError(f"Failed to download from Cloudinary: Error 404 - Resource not found - {public_id}")
 
 
 def delete_file(storage_key: str | None) -> None:
