@@ -11,17 +11,17 @@ services:
       - key: STORAGE_BACKEND
         value: cloudinary
       - key: CLOUDINARY_CLOUD_NAME
-        value: da1dxidrq
+        value: ""
       - key: CLOUDINARY_API_KEY
-        value: 827115752956768
+        value: ""
       - key: CLOUDINARY_API_SECRET
-        value: thAy2iXNXNaEhjqgjrDImi1P1NY
+        value: ""
       - key: SKIP_MODEL_LOAD
         value: true
       - key: AUTH_SECRET
-        value: a262029a40fd49e85f1d56178af894d9
+        value: ""
       - key: SIGNING_SECRET
-        value: 8c01f5738abd98100d487018175db152
+        value: ""
       - key: PUBLIC_UPLOADS
         value: true
       - key: HF_API_TOKEN
