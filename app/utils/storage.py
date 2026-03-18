@@ -131,12 +131,9 @@ def _load_from_cloudinary(public_id: str) -> bytes:
     cld = _get_cloudinary()
 
     try:
-        # Get the resource info to find the URL
-        resource = cld.api.resource(public_id, resource_type="raw")
-        url = resource.get("secure_url")
-        if not url:
-            raise FileNotFoundError(f"Cloudinary resource not found: {public_id}")
-
+        # Generate a signed URL for raw file download
+        url = cld.utils.private_download_url(public_id, resource_type="raw")
+        
         # Download the file
         response = requests.get(url, timeout=30)
         response.raise_for_status()
