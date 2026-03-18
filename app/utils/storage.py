@@ -82,12 +82,14 @@ def _save_to_cloudinary(file_bytes: bytes, filename: str | None, content_type: s
 
     # Upload to Cloudinary
     folder = _folder_for_entity("resumes")
-    public_id = f"{folder}/{uuid.uuid4()}"
+    file_ext = _safe_ext(filename)
+    public_id = f"{str(uuid.uuid4())}{file_ext}"
 
     try:
         result = cld.uploader.upload(
             io.BytesIO(file_bytes),
             public_id=public_id,
+            folder=folder,
             resource_type=resource_type,
             filename=filename or "file",
         )
@@ -128,23 +130,16 @@ def _load_from_cloudinary(public_id: str) -> bytes:
     # Generate a download URL
     cld = _get_cloudinary()
 
-    # Try the original public_id first
-    for attempt_public_id in [public_id, public_id.rsplit('.', 1)[0]]:  # Try with and without extension
-        try:
-            # Get the resource info to find the URL
-            resource = cld.api.resource(attempt_public_id, resource_type="raw")
-            url = resource.get("secure_url")
-            if not url:
-                continue
-
-            # Download the file
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            return response.content
-        except Exception:
-            continue
-    
-    raise FileNotFoundError(f"Failed to download from Cloudinary: Error 404 - Resource not found - {public_id}")
+    try:
+        # Generate a signed URL for download
+        url = cld.utils.private_download_url(public_id, resource_type="raw")
+        
+        # Download the file
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return response.content
+    except Exception as e:
+        raise FileNotFoundError(f"Failed to download from Cloudinary: {e}")
 
 
 def delete_file(storage_key: str | None) -> None:
