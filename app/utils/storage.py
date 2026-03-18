@@ -131,8 +131,8 @@ def _load_from_cloudinary(public_id: str) -> bytes:
     cld = _get_cloudinary()
 
     try:
-        # Generate a signed URL for download
-        url = cld.utils.private_download_url(public_id, resource_type="raw")
+        # Generate a signed URL for download with correct parameters
+        url = cld.utils.private_download_url(public_id, resource_type="raw", format="pdf")
         
         # Download the file
         response = requests.get(url, timeout=30)
