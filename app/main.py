@@ -5,10 +5,9 @@ from app.config import settings
 from app.db import init_session_factory
 from app.api.routes_admin import router as admin_router
 from app.api.routes_analyses import router as analyses_router
-from app.api.routes_files import router as files_router
+from app.api.routes_analyze import router as analyze_router
 from app.api.routes_health import router as health_router
 from app.api.routes_metrics import router as metrics_router
-from app.api.routes_upload import router as upload_router
 from app.tasks.job_queue import start_workers, stop_workers
 
 app = FastAPI(title="CV Analyser Service")
@@ -23,10 +22,9 @@ if settings.allow_origins:
     )
 
 app.include_router(health_router)
-app.include_router(upload_router)
+app.include_router(analyze_router)  # NEW: Replace upload_router
 app.include_router(analyses_router)
 app.include_router(admin_router)
-app.include_router(files_router)
 
 if settings.prometheus_enabled:
     app.include_router(metrics_router)

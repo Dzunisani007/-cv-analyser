@@ -1,56 +1,37 @@
 services:
   - type: web
-    name: cv-analysis-service
+    name: cv-analyser-service
     env: python
     plan: free
     buildCommand: pip install -r requirements.runtime.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        value: postgresql://recruitement_deploy_user:tHkpCaJ8nxQpN1tCItF7BEXNvzLrkgiQ@dpg-d62tb67pm1nc738h8jv0-a.oregon-postgres.render.com/recruitement_deploy?sslmode=require
-      - key: STORAGE_BACKEND
-        value: cloudinary
-      - key: CLOUDINARY_CLOUD_NAME
-        value: ""
-      - key: CLOUDINARY_API_KEY
-        value: ""
-      - key: CLOUDINARY_API_SECRET
-        value: ""
-      - key: SKIP_MODEL_LOAD
-        value: true
+        sync: false
       - key: AUTH_SECRET
-        value: ""
-      - key: SIGNING_SECRET
-        value: ""
-      - key: PUBLIC_UPLOADS
-        value: true
+        sync: false
+        value: a262029a40fd49e85f1d56178af894d9
       - key: HF_API_TOKEN
-        value: ""
+        sync: false
       - key: NER_MODEL
         value: dslim/bert-base-NER
-      - key: EMBED_MODEL
-        value: TechWolf/JobBERT-v2
+      - key: NER_MODE
+        value: transformers
+      - key: GLINER_MODEL
+        value: urchade/gliner_base-v2.1
+      - key: STRUCTURED_EXTRACTION_MODEL
+        value: microsoft/DialoGPT-medium
       - key: ENABLE_STRUCTURED_EXTRACTION
         value: true
-      - key: STRUCTURED_EXTRACTION_MODEL
-        value: Qwen/Qwen2.5-7B-Instruct
-      - key: STRUCTURED_EXTRACTION_REPAIR_JSON
-        value: true
-      - key: ENABLE_LAYOUT_AWARE_PARSING
-        value: true
-      - key: LAYOUTLMV3_MODEL
-        value: microsoft/layoutlmv3-base
-      - key: DONUT_MODEL
-        value: naver-clova-ix/donut-base
-      - key: PGVECTOR_ENABLED
-        value: false
       - key: WORKER_COUNT
         value: 2
       - key: INLINE_JOBS
         value: false
-      - key: MAX_UPLOAD_MB
-        value: 15
       - key: PROMETHEUS_ENABLED
         value: true
       - key: DEBUG
         value: false
+      - key: PGVECTOR_ENABLED
+        value: false
+      - key: EMBED_MODEL
+        value: sentence-transformers/all-MiniLM-L6-v2

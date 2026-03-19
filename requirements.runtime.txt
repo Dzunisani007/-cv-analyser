@@ -5,13 +5,9 @@ alembic
 psycopg2-binary
 python-multipart
 python-dotenv
-cloudinary
 requests
 numpy
-pillow
-pdfplumber
-pdf2image
-pytesseract
-python-docx
 prometheus-client
 huggingface-hub
+sentence-transformers
+transformers

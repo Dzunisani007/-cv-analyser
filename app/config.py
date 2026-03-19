@@ -48,6 +48,10 @@ class Settings:
 
         self.embed_model: str = _getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
         self.ner_model: str = _getenv("NER_MODEL", "dslim/bert-base-NER")
+        self.ner_mode: str = _getenv("NER_MODE", "transformers")
+        self.gliner_model: str = _getenv("GLINER_MODEL", "urchade/gliner_base-v2.1")
+        self.structured_extraction_model: str = _getenv("STRUCTURED_EXTRACTION_MODEL", "microsoft/DialoGPT-medium")
+        self.enable_structured_extraction: bool = _getbool("ENABLE_STRUCTURED_EXTRACTION", "true")
         self.generation_model: str | None = _getenv("GENERATION_MODEL")
         self.hf_api_token: str | None = _getenv("HF_API_TOKEN")
 

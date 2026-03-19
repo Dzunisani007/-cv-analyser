@@ -8,47 +8,52 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 
-class Resume(Base):
-    __tablename__ = "cv_resumes"
+class CVRecord(Base):
+    """Stores raw CV text for analysis (no file storage)."""
+    __tablename__ = "cv_records"
 
     id: Mapped[uuid.UUID] = mapped_column(
         sa.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(sa.UUID(as_uuid=True), nullable=True)
-    filename: Mapped[str | None] = mapped_column(Text, nullable=True)
-    storage_key: Mapped[str | None] = mapped_column(Text, nullable=True)
-    content_type: Mapped[str | None] = mapped_column(Text, nullable=True)
-    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    resume_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    cv_text: Mapped[str] = mapped_column(Text, nullable=False)  # Raw extracted text from recruitment app
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")  # pending, processing, completed, failed
     created_at = mapped_column(sa.DateTime(timezone=True), server_default=sa.func.now())
     updated_at = mapped_column(sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
 
+    # Relationship to analyses
     analyses: Mapped[list[CVAnalysis]] = relationship(
-        "CVAnalysis", back_populates="resume", cascade="all, delete-orphan"
+        "CVAnalysis", back_populates="record", cascade="all, delete-orphan"
     )
 
 
 class CVAnalysis(Base):
+    """Analysis result for a CV record."""
     __tablename__ = "cv_analyses"
 
     id: Mapped[uuid.UUID] = mapped_column(
         sa.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    resume_id: Mapped[uuid.UUID] = mapped_column(
-        sa.UUID(as_uuid=True), ForeignKey("cv_resumes.id", ondelete="CASCADE"), nullable=False
+    record_id: Mapped[uuid.UUID] = mapped_column(
+        sa.UUID(as_uuid=True), ForeignKey("cv_records.id", ondelete="CASCADE"), nullable=False
     )
-    result = mapped_column(sa.JSON, nullable=True)
+    job_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")  # pending, processing, completed, failed
+    
+    # Structured extraction result
+    result = mapped_column(sa.JSON, nullable=True)  # Full analysis result (schema_version, structured_data, match_analysis, etc.)
+    
+    # Scores and metadata
     overall_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    component_scores = mapped_column(sa.JSON, nullable=True)
-    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    component_scores = mapped_column(sa.JSON, nullable=True)  # {skills, experience, education, format}
     warnings = mapped_column(sa.JSON, nullable=True)
+    
+    # Timestamps
     created_at = mapped_column(sa.DateTime(timezone=True), server_default=sa.func.now())
     updated_at = mapped_column(sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
     started_at = mapped_column(sa.DateTime(timezone=True), nullable=True)
     finished_at = mapped_column(sa.DateTime(timezone=True), nullable=True)
 
-    resume: Mapped[Resume] = relationship("Resume", back_populates="analyses")
+    record: Mapped[CVRecord] = relationship("CVRecord", back_populates="analyses")
     workflow_logs: Mapped[list[WorkflowAuditLog]] = relationship(
         "WorkflowAuditLog", back_populates="analysis", cascade="all, delete-orphan"
     )
@@ -59,7 +64,7 @@ class ResumeSkill(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     resume_id: Mapped[uuid.UUID] = mapped_column(
-        sa.UUID(as_uuid=True), ForeignKey("cv_resumes.id", ondelete="CASCADE"), nullable=False
+        sa.UUID(as_uuid=True), ForeignKey("cv_records.id", ondelete="CASCADE"), nullable=False
     )
     skill: Mapped[str | None] = mapped_column(Text, nullable=True)
     canonical_skill: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -74,7 +79,7 @@ class ResumeScore(Base):
         sa.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     resume_id: Mapped[uuid.UUID] = mapped_column(
-        sa.UUID(as_uuid=True), ForeignKey("cv_resumes.id", ondelete="CASCADE"), nullable=False
+        sa.UUID(as_uuid=True), ForeignKey("cv_records.id", ondelete="CASCADE"), nullable=False
     )
     overall_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     component_scores = mapped_column(sa.JSON, nullable=True)

@@ -4,36 +4,37 @@ import re
 import uuid
 
 from app.db import session_scope
-from app.models import AuditLog, CVAnalysis, Resume, ResumeScore, ResumeSkill
+from app.models import AuditLog, CVAnalysis, CVRecord, ResumeScore, ResumeSkill
 from app.services.embedding_matcher import extract_required_skills_from_job, match_skills_to_job
 from app.services.feedback import generate_feedback_list
 from app.services.ner_and_canon import parse_entities
-from app.services.parser import extract_text_and_layout
 from app.services.scorer import score_components
 from app.services.structured_extraction import extract_structured_cv
 from app.utils.normalizer import normalize_analysis_result
 from app.services.generation import generate_interview_questions, generate_suggestions
 from app.utils.pii import strip_pii_for_models
-from app.utils.storage import load_file_bytes
 
 
 def process_job(job) -> None:
+    """
+    REFACTORED: No file loading or parsing. CV text comes directly from CVRecord.
+    """
     analysis_id = uuid.UUID(job.analysis_id)
-    resume_id = uuid.UUID(job.resume_id)
+    record_id = uuid.UUID(job.resume_id)  # Keep name for backward compatibility
 
     with session_scope() as db:
-        resume = db.get(Resume, resume_id)
+        record = db.get(CVRecord, record_id)
         analysis = db.get(CVAnalysis, analysis_id)
-        if not resume or not analysis:
+        
+        if not record or not analysis:
             return
-
-        _audit(db, "cv_analyses", analysis.id, "analysis_started", None, {"resume_id": str(resume.id)})
-
-        file_bytes = load_file_bytes(resume.storage_key)
-        resume_text, extraction_metadata = extract_text_and_layout(file_bytes, resume.content_type or "application/octet-stream")
-        resume.resume_text = resume_text
-        resume.status = "processing"
-        db.add(resume)
+        
+        _audit(db, "cv_analyses", analysis.id, "analysis_started", None, {"record_id": str(record.id)})
+        
+        # *** KEY CHANGE: Use cv_text directly from record ***
+        resume_text = record.cv_text
+        record.status = "processing"
+        db.add(record)
         db.flush()
 
     m = re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", resume_text or "", re.IGNORECASE)
@@ -136,22 +137,23 @@ def process_job(job) -> None:
 
     normalized = normalize_analysis_result(
         analysis_id=str(analysis_id),
-        resume_id=str(resume_id),
+        resume_id=str(record_id),
         overall_score=score_payload.get("overall_score"),
         component_scores=score_payload.get("component_scores"),
         evidence=evidence,
         suggestions=match_suggestions,
         raw_payload={"entities": entities, "skill_matches": skill_matches},
-        extraction_metadata=extraction_metadata,
+        extraction_metadata={"method": "direct_text", "confidence": None, "pages": None, "has_scanned_content": False},
         structured_data=structured_data,
         extraction_suggestions=extraction_suggestions,
         interview_questions=interview_questions,
     )
 
+    # Persist results
     with session_scope() as db:
         analysis = db.get(CVAnalysis, analysis_id)
-        resume = db.get(Resume, resume_id)
-        if not resume or not analysis:
+        record = db.get(CVRecord, record_id)
+        if not record or not analysis:
             return
 
         analysis.result = normalized
@@ -160,13 +162,13 @@ def process_job(job) -> None:
         analysis.status = "completed"
         db.add(analysis)
 
-        resume.status = "completed"
-        db.add(resume)
+        record.status = "completed"
+        db.add(record)
 
-        _persist_skills(db, resume_id, evidence["matched_skills"])
+        _persist_skills(db, record_id, evidence["matched_skills"])
 
         rs = ResumeScore(
-            resume_id=resume_id,
+            resume_id=record_id,
             overall_score=(normalized.get("match_analysis") or {}).get("overall_score"),
             component_scores=(normalized.get("match_analysis") or {}).get("component_scores"),
             explanation={"evidence": evidence, "suggestions": suggestions},
