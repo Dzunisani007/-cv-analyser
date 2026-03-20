@@ -19,10 +19,14 @@ def health():
         if storage_mode.lower() == "local":
             import os
             os.makedirs(settings.local_storage_path or "./.storage", exist_ok=True)
+            storage_ok = True
         elif storage_mode.lower() == "cloudinary":
-            # Test Cloudinary config by trying to initialize
-            from app.utils.storage import _get_cloudinary
-            _get_cloudinary()
+            # Storage removed - not needed for refactored service
+            storage_ok = False
+            storage_error = "Storage module removed - not needed for refactored service"
+        else:
+            storage_ok = False
+            storage_error = f"Unknown storage backend: {storage_mode}"
     except Exception as e:
         storage_ok = False
         storage_error = str(e)

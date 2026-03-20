@@ -35,3 +35,5 @@ services:
         value: false
       - key: EMBED_MODEL
         value: sentence-transformers/all-MiniLM-L6-v2
+      - key: STORAGE_BACKEND
+        value: local
