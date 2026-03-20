@@ -26,7 +26,7 @@ services:
       - key: WORKER_COUNT
         value: 2
       - key: INLINE_JOBS
-        value: false
+        value: true
       - key: PROMETHEUS_ENABLED
         value: true
       - key: DEBUG
