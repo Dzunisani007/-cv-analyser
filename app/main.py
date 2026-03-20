@@ -6,6 +6,7 @@ from app.db import init_session_factory
 from app.api.routes_admin import router as admin_router
 from app.api.routes_analyses import router as analyses_router
 from app.api.routes_analyze import router as analyze_router
+from app.api.routes_analyze_debug import router as analyze_debug_router
 from app.api.routes_health import router as health_router
 from app.api.routes_metrics import router as metrics_router
 from app.tasks.job_queue import start_workers, stop_workers
@@ -23,6 +24,7 @@ if settings.allow_origins:
 
 app.include_router(health_router)
 app.include_router(analyze_router)  # NEW: Replace upload_router
+app.include_router(analyze_debug_router)  # Debug version
 app.include_router(analyses_router)
 app.include_router(admin_router)
 
