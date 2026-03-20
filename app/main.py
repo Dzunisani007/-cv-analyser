@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 from app.config import settings
 from app.db import init_session_factory
@@ -30,6 +31,11 @@ app.include_router(admin_router)
 
 if settings.prometheus_enabled:
     app.include_router(metrics_router)
+
+# Root endpoint
+@app.get("/")
+def root():
+    return {"message": "CV Analyser Service", "status": "running"}
 
 
 @app.on_event("startup")
