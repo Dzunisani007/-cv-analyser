@@ -8,6 +8,43 @@ from app.services.ner_and_canon import _use_hf_api as ner_use_hf_api
 router = APIRouter()
 
 
+@router.post("/warmup")
+def warmup_models():
+    """Pre-load models to avoid cold start on first request."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from app.services.embedding_matcher import load_embed
+        from app.services.ner_and_canon import load_ner
+        
+        logger.info("Loading models for warmup...")
+        
+        # Load models
+        ner_model = load_ner()
+        embed_model = load_embed()
+        
+        # Check if models are loaded
+        ner_loaded = ner_model is not None and ner_model != "__skipped__"
+        embed_loaded = embed_model is not None and embed_model != "__skipped__"
+        
+        logger.info(f"Models loaded - NER: {ner_loaded}, Embeddings: {embed_loaded}")
+        
+        return {
+            "status": "success",
+            "models": {
+                "ner": "loaded" if ner_loaded else "skipped",
+                "embeddings": "loaded" if embed_loaded else "skipped"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Model warmup failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
 @router.get("/health")
 def health():
     db = check_db()

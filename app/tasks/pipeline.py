@@ -5,6 +5,7 @@ import uuid
 
 from app.db import session_scope
 from app.models import AuditLog, CVAnalysis, CVRecord, ResumeScore, ResumeSkill
+from app.services.model_loader import get_embed_model, get_ner_model
 from app.services.embedding_matcher import extract_required_skills_from_job, match_skills_to_job
 from app.services.feedback import generate_feedback_list
 from app.services.ner_and_canon import parse_entities

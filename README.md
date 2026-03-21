@@ -1,10 +1,24 @@
 # CV Analyser Service (Backend)
 
+## Overview
+This service analyzes CVs and matches them against job descriptions using ML models. It's optimized for deployment on Hugging Face Spaces.
+
+## Deployment
+- **Hugging Face Spaces**: Primary deployment target (Docker)
+- **Render**: Alternative deployment (not recommended for ML workloads)
+
+## Quick Start on Hugging Face Spaces
+1. Create a new Space with Docker template
+2. Push this code to the Space repository
+3. Set `DATABASE_URL` as a repository secret
+4. The service will start on port 7860
+
 ## Environment variables
 
+### Core Settings
 - **`ENVIRONMENT`**: `development|staging|production`.
 - **`SERVICE_HOST`**: bind host (default `0.0.0.0`).
-- **`SERVICE_PORT`**: bind port (default `8000`).
+- **`SERVICE_PORT`**: bind port (default `7860` for HF Spaces).
 - **`ALLOW_ORIGINS`**: comma-separated CORS origins.
 
 - **`AUTH_SECRET`**: bearer token secret.

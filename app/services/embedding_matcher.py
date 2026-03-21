@@ -18,6 +18,11 @@ def load_embed():
     if _model is not None:
         return _model
 
+    # Check if we should use lazy loading
+    if settings.lazy_model_load:
+        # Don't load on startup, will load on first request
+        return None
+    
     if (os.getenv("SKIP_MODEL_LOAD", "false") or "false").lower() == "true":
         _model = "__skipped__"
         return _model
@@ -26,14 +31,39 @@ def load_embed():
         _model = "__hf_api__"
         return _model
 
-    from sentence_transformers import SentenceTransformer
+    # Try to load from cache first
+    from app.model_cache import is_model_cached, mark_model_cached, ensure_cache_dir
+    cache_dir = ensure_cache_dir()
+    model_cache_path = cache_dir / "embeddings"
+    
+    if is_model_cached(settings.embed_model) and model_cache_path.exists():
+        try:
+            from sentence_transformers import SentenceTransformer
+            _model = SentenceTransformer(str(model_cache_path))
+            logger.info(f"Loaded embeddings model from cache: {model_cache_path}")
+            return _model
+        except Exception as e:
+            logger.warning(f"Failed to load from cache: {e}")
 
+    # Load from transformers and cache
+    from sentence_transformers import SentenceTransformer
+    
+    logger.info(f"Loading embeddings model: {settings.embed_model}")
     _model = SentenceTransformer(settings.embed_model)
+    
+    # Cache the model
+    try:
+        _model.save(str(model_cache_path))
+        mark_model_cached(settings.embed_model, str(model_cache_path))
+        logger.info(f"Cached embeddings model to: {model_cache_path}")
+    except Exception as e:
+        logger.warning(f"Failed to cache model: {e}")
+    
     return _model
 
 
 def embed_text(texts: list[str]) -> np.ndarray:
-    m = load_embed()
+    m = get_embed_model()
     if m == "__skipped__":
         # Return zero embeddings in SKIP_MODEL_LOAD mode
         return np.zeros((len(texts), 384))

@@ -13,6 +13,7 @@ services:
         value: a262029a40fd49e85f1d56178af894d9
       - key: HF_API_TOKEN
         sync: false
+        value: ""
       - key: NER_MODEL
         value: dslim/bert-base-NER
       - key: NER_MODE

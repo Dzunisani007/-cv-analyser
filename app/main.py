@@ -14,6 +14,15 @@ from app.tasks.job_queue import start_workers, stop_workers
 
 app = FastAPI(title="CV Analyser Service")
 
+# Add CORS middleware for HF Spaces
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # TODO: Tighten this in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 if settings.allow_origins:
     app.add_middleware(
         CORSMiddleware,
@@ -58,8 +67,11 @@ def _startup() -> None:
             logging.getLogger(__name__).warning(f"Auto-migration failed: {e}")
 
     start_workers(settings.worker_count)
-    # Best-effort warmup; can be skipped in tests.
-    if (os.getenv("SKIP_MODEL_LOAD", "false") or "false").lower() != "true":
+    # Skip model loading on startup for HF Spaces - load on first request
+    if settings.lazy_model_load:
+        import logging
+        logging.getLogger(__name__).info("Models will be loaded on first request (lazy loading)")
+    elif (os.getenv("SKIP_MODEL_LOAD", "false") or "false").lower() != "true":
         try:
             from app.services.embedding_matcher import load_embed
             from app.services.ner_and_canon import load_ner

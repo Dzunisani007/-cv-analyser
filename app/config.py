@@ -24,7 +24,7 @@ class Settings:
         self.environment = _getenv("ENVIRONMENT", "development")
         self.database_url = _getenv("DATABASE_URL")
         self.service_host = _getenv("SERVICE_HOST", "0.0.0.0")
-        self.service_port = _getint("SERVICE_PORT", "8000")
+        self.service_port = _getint("SERVICE_PORT", "7860")  # HF Spaces default port
         self.storage_backend = _getenv("STORAGE_BACKEND", "local")
         self.local_storage_path = _getenv("LOCAL_STORAGE_PATH", "./.storage")
         self.max_upload_mb = _getint("MAX_UPLOAD_MB", "15")
@@ -53,7 +53,7 @@ class Settings:
         self.structured_extraction_model: str = _getenv("STRUCTURED_EXTRACTION_MODEL", "microsoft/DialoGPT-medium")
         self.enable_structured_extraction: bool = _getbool("ENABLE_STRUCTURED_EXTRACTION", "true")
         self.generation_model: str | None = _getenv("GENERATION_MODEL")
-        self.hf_api_token: str | None = _getenv("HF_API_TOKEN")
+        self.hf_api_token: str | None = _getenv("HF_API_TOKEN") or _getenv("HF_TOKEN")
 
         self.llm_mode = (_getenv("LLM_MODE", "none") or "none").lower()
         self.llama_model_path = _getenv("LLAMA_MODEL_PATH")
@@ -62,6 +62,7 @@ class Settings:
         self.pgvector_enabled = _getbool("PGVECTOR_ENABLED", "false")
 
         self.inline_jobs = _getbool("INLINE_JOBS", "false")
+        self.lazy_model_load = _getbool("LAZY_MODEL_LOAD", "false")
         self.prometheus_enabled = _getbool("PROMETHEUS_ENABLED", "true")
         self.debug = _getbool("DEBUG", "false")
         self.sentry_dsn = _getenv("SENTRY_DSN")

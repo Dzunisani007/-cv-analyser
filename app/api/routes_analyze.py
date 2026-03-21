@@ -80,7 +80,9 @@ async def get_analysis_status(analysis_id: str):
             "analysis_id": str(analysis.id),
             "status": analysis.status,
             "overall_score": analysis.overall_score,
-            "finished_at": analysis.finished_at.isoformat() if analysis.finished_at else None
+            "finished_at": analysis.finished_at.isoformat() if analysis.finished_at else None,
+            "warnings": analysis.warnings,
+            "started_at": analysis.started_at.isoformat() if analysis.started_at else None
         }
 
 
@@ -102,9 +104,15 @@ async def get_analysis_result(analysis_id: str):
             raise HTTPException(status_code=404, detail="Analysis not found")
         
         if analysis.status != "completed":
-            raise HTTPException(status_code=202, detail="Analysis not yet completed")
+            # Return result even if failed, with warnings
+            return {
+                "analysis_id": str(analysis.id),
+                "status": analysis.status,
+                "warnings": analysis.warnings,
+                "result": normalize_analysis_result(analysis.result)
+            }
         
         if not analysis.result:
             raise HTTPException(status_code=500, detail="Analysis result is missing")
         
-        return analysis.result
+        return normalize_analysis_result(analysis.result)

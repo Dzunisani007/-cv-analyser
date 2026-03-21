@@ -54,15 +54,11 @@ def load_ner():
     if _ner_pipe is not None:
         return _ner_pipe
 
-    if (settings.ner_mode or "transformers") == "gliner":
-        try:
-            from gliner import GLiNER  # type: ignore
-
-            _ner_pipe = GLiNER.from_pretrained(settings.gliner_model)
-            return _ner_pipe
-        except Exception as e:  # noqa: BLE001
-            logging.getLogger(__name__).warning(f"GLiNER load failed, falling back to transformers NER: {e}")
-
+    # Check if we should use lazy loading
+    if settings.lazy_model_load:
+        # Don't load on startup, will load on first request
+        return None
+    
     if (os.getenv("SKIP_MODEL_LOAD", "false") or "false").lower() == "true":
         _ner_pipe = "__skipped__"
         return _ner_pipe
@@ -71,11 +67,39 @@ def load_ner():
         _ner_pipe = "__hf_api__"
         return _ner_pipe
 
-    from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+    # Try to load from cache first
+    from app.model_cache import is_model_cached, mark_model_cached, ensure_cache_dir
+    cache_dir = ensure_cache_dir()
+    model_cache_path = cache_dir / "ner"
+    
+    if is_model_cached(settings.ner_model) and model_cache_path.exists():
+        try:
+            from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+            tokenizer = AutoTokenizer.from_pretrained(str(model_cache_path))
+            model = AutoModelForTokenClassification.from_pretrained(str(model_cache_path))
+            _ner_pipe = pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple")
+            logger.info(f"Loaded NER model from cache: {model_cache_path}")
+            return _ner_pipe
+        except Exception as e:
+            logger.warning(f"Failed to load NER from cache: {e}")
 
+    # Load from transformers and cache
+    from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+    
+    logger.info(f"Loading NER model: {settings.ner_model}")
     tokenizer = AutoTokenizer.from_pretrained(settings.ner_model)
     model = AutoModelForTokenClassification.from_pretrained(settings.ner_model)
-    _ner_pipe = pipeline("ner", model=model, tokenizer=tokenizer, grouped_entities=True)
+    _ner_pipe = pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple")
+    
+    # Cache the model
+    try:
+        tokenizer.save_pretrained(str(model_cache_path))
+        model.save_pretrained(str(model_cache_path))
+        mark_model_cached(settings.ner_model, str(model_cache_path))
+        logger.info(f"Cached NER model to: {model_cache_path}")
+    except Exception as e:
+        logger.warning(f"Failed to cache NER model: {e}")
+    
     return _ner_pipe
 
 
@@ -275,7 +299,7 @@ def _extract_experience(text: str, section_lines: list[str]) -> list[dict]:
 
 
 def parse_entities(text: str) -> dict:
-    pipe = load_ner()
+    pipe = get_ner_model()
     skills: list[str] = []
     orgs: list[str] = []
     names: list[str] = []

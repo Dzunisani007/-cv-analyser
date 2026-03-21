@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set workdir
+WORKDIR /app
+
+# Copy requirements first (cache optimization)
+COPY requirements.hf.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY . .
+
+# Create storage directory
+RUN mkdir -p .storage
+
+# Expose port (HF uses 7860)
+ENV PORT=7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:7860/health || exit 1
+
+# Run app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
